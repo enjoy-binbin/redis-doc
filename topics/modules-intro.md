@@ -34,16 +34,15 @@ using the following `redis.conf` configuration directive:
 
     loadmodule /path/to/mymodule.so
 
-It is also possible to load a module at runtime using the following command:
+It is also possible to load a module at runtime using `MODULE LOAD` command:
 
     MODULE LOAD /path/to/mymodule.so
 
-In order to list all loaded modules, use:
+In order to list all loaded modules, use `MODULE LIST` command:
 
     MODULE LIST
 
-Finally, you can unload (and later reload if you wish) a module using the
-following command:
+Finally, you can unload (and later reload if you wish) a module using `MODULE UNLOAD` command:
 
     MODULE UNLOAD mymodule
 
@@ -79,7 +78,7 @@ simple module that implements a command that outputs a random number.
     }
 
 The example module has two functions. One implements a command called
-HELLOWORLD.RAND. This function is specific of that module. However the
+`HELLOWORLD.RAND`. This function is specific of that module. However the
 other function called `RedisModule_OnLoad()` must be present in each
 Redis module. It is the entry point for the module to be initialized,
 register its commands, and potentially other private data structures
@@ -206,7 +205,7 @@ you may need to directly access the string object.
 
 There are a few functions in order to work with string objects:
 
-    const char *RedisModule_StringPtrLen(RedisModuleString *string, size_t *len);
+    const char *RedisModule_StringPtrLen(const RedisModuleString *str, size_t *len);
 
 The above function accesses a string by returning its pointer and setting its
 length in `len`.
@@ -221,7 +220,7 @@ API:
 The string returned by the above command must be freed using a corresponding
 call to `RedisModule_FreeString()`:
 
-    void RedisModule_FreeString(RedisModuleString *str);
+    void RedisModule_FreeString(RedisModuleCtx *ctx, RedisModuleString *str);
 
 However if you want to avoid having to free strings, the automatic memory
 management, covered later in this document, can be a good alternative, by
@@ -253,7 +252,7 @@ data space (this is not always true, for example an ID generator may
 never touch Redis keys). Redis modules have two different APIs in order to
 access the Redis data space, one is a low level API that provides very
 fast access and a set of functions to manipulate Redis data structures.
-The other API is more high level, and allows to call Redis commands and
+The other API is more high level, and allows calling Redis commands and
 fetch the result, similarly to how Lua scripts access Redis.
 
 The high level API is also useful in order to access Redis functionalities
@@ -366,16 +365,16 @@ The above function returns NULL if you try to access out of range elements.
 
 Strings and errors (which are like strings but with a different type) can
 be accessed using in the following way, making sure to never write to
-the resulting pointer (that is returned as as `const` pointer so that
+the resulting pointer (that is returned as `const` pointer so that
 misusing must be pretty explicit):
 
     size_t len;
-    char *ptr = RedisModule_CallReplyStringPtr(reply,&len);
+    const char *ptr = RedisModule_CallReplyStringPtr(reply,&len);
 
 If the reply type is not a string or an error, NULL is returned.
 
-RedisCallReply objects are not the same as module string objects
-(RedisModuleString types). However sometimes you may need to pass replies
+`RedisModuleCallReply` objects are not the same as module string objects
+(`RedisModuleString` types). However sometimes you may need to pass replies
 of type string or integer, to API functions expecting a module string.
 
 When this is the case, you may want to evaluate if using the low level
@@ -444,7 +443,7 @@ two different functions:
 
     int RedisModule_ReplyWithString(RedisModuleCtx *ctx, RedisModuleString *str);
 
-The first function gets a C pointer and length. The second a RedisModuleString
+The first function gets a C pointer and length. The second function gets a `RedisModuleString`
 object. Use one or the other depending on the source type you have at hand.
 
 In order to reply with an array, you just need to use a function to emit the
@@ -463,7 +462,7 @@ sub array elements.
 
 Sometimes it is not possible to know beforehand the number of items of
 an array. As an example, think of a Redis module implementing a FACTOR
-command that given a number outputs the prime factors. Instead of
+command that given a number of outputs the prime factors. Instead of
 factorializing the number, storing the prime factors into an array, and
 later produce the command reply, a better solution is to start an array
 reply where the length is not known, and set it later. This is accomplished
@@ -530,7 +529,7 @@ is of the expected type, or if it's empty.
 
 ## Low level access to keys
 
-Low level access to keys allow to perform operations on value objects associated
+Low level access to keys allow performing operations on value objects associated
 to keys directly, with a speed similar to what Redis uses internally to
 implement the built-in commands.
 
@@ -542,7 +541,7 @@ Because the API is meant to be very fast, it cannot do too many run-time
 checks, so the user must be aware of certain rules to follow:
 
 * Opening the same key multiple times where at least one instance is opened for writing, is undefined and may lead to crashes.
-* While a key is open, it should only be accessed via the low level key API. For example opening a key, then calling DEL on the same key using the `RedisModule_Call()` API will result into a crash. However it is safe to open a key, perform some operation with the low level API, closing it, then using other APIs to manage the same key, and later opening it again to do some more work.
+* While a key is open, it should only be accessed via the low level key API. For example opening a key, then calling `DEL` on the same key using the `RedisModule_Call()` API will result into a crash. However it is safe to open a key, perform some operation with the low level API, closing it, then using other APIs to manage the same key, and later opening it again to do some more work.
 
 In order to open a key the `RedisModule_OpenKey` function is used. It returns
 a key pointer, that we'll use with all the next calls to access and modify
@@ -585,10 +584,12 @@ It returns one of the following values:
     REDISMODULE_KEYTYPE_HASH
     REDISMODULE_KEYTYPE_SET
     REDISMODULE_KEYTYPE_ZSET
+    REDISMODULE_KEYTYPE_MODULE
+    REDISMODULE_KEYTYPE_STREAM
 
 The above are just the usual Redis key types, with the addition of an empty
 type, that signals the key pointer is associated with an empty key that
-does not yet exists.
+does not yet exist.
 
 ## Creating new keys
 
@@ -810,7 +811,7 @@ When automatic memory management is enabled:
 
 1. You don't need to close open keys.
 2. You don't need to free replies.
-3. You don't need to free RedisModuleString objects.
+3. You don't need to free `RedisModuleString` objects.
 
 However you can still do it, if you want. For example, automatic memory
 management may be active, but inside a loop allocating a lot of strings,
