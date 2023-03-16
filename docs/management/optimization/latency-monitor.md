@@ -64,6 +64,7 @@ The framework monitors and logs latency spikes in the execution time of these ev
 
 * `command`: regular commands.
 * `fast-command`: O(1) and O(log N) commands.
+* `command-unblocking`:
 * `fork`: the `fork(2)` system call.
 * `rdb-unlink-temp-file`: the `unlink(2)` system call.
 * `aof-fsync-always`: the `fsync(2)` system call when invoked by the `appendfsync allways` policy.
@@ -73,11 +74,15 @@ The framework monitors and logs latency spikes in the execution time of these ev
 * `aof-write-alone`: the `write(2)` system call when no pending fsync and no active child process.
 * `aof-fstat`: the `fstat(2)` system call.
 * `aof-rename`: the `rename(2)` system call for renaming the temporary file after completing `BGREWRITEAOF`.
-* `aof-rewrite-diff-write`: writing the differences accumulated while performing `BGREWRITEAOF`.
+* `aof-rewrite-diff-write`: writing the differences accumulated while performing `BGREWRITEAOF`. Removed in Redis 7.0
 * `active-defrag-cycle`: the active defragmentation cycle.
 * `expire-cycle`: the expiration cycle.
+* `expire-del`: 
 * `eviction-cycle`: the eviction cycle.
 * `eviction-del`: deletes during the eviction cycle.
+* `eviction-lazyfree`: lazyfree during the eviction cycle. Added in Redis 6.2.8 and 7.0.5
+* `while-blocked-cron`: 
+* `module-acquire-GIL`: indicates how long Redis wait to acquire the GIL after sleep.
 
 ## How to enable latency monitoring
 
